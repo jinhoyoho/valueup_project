@@ -4,12 +4,12 @@
 import os, sys
 import rospy
 
-sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))))
 
-from dynamixel_sdk import *
-from dynamixel_sdk.port_handler import PortHandler
-from dynamixel_sdk.packet_handler import PacketHandler
-from dynamixel_sdk.robotis_def import *
+from DynamixelSDK.ros.dynamixel_sdk.src.dynamixel_sdk import *
+from DynamixelSDK.ros.dynamixel_sdk.src.dynamixel_sdk.port_handler import PortHandler
+from DynamixelSDK.ros.dynamixel_sdk.src.dynamixel_sdk.packet_handler import PacketHandler
+from DynamixelSDK.ros.dynamixel_sdk.src.dynamixel_sdk.robotis_def import *
 from manipulator.msg import *
 from manipulator_description import Manipulator
 from geometry_msgs.msg import Point

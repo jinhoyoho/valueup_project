@@ -6,6 +6,8 @@ import rospy
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 
+print(os.path.dirname(os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))))
+
 from dynamixel_sdk import *
 from dynamixel_sdk.port_handler import PortHandler
 from dynamixel_sdk.packet_handler import PacketHandler

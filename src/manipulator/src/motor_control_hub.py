@@ -4,14 +4,14 @@
 import os, sys
 import rospy
 
-sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))))
 
 print(os.path.dirname(os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))))
 
-from dynamixel_sdk import *
-from dynamixel_sdk.port_handler import PortHandler
-from dynamixel_sdk.packet_handler import PacketHandler
-from dynamixel_sdk.robotis_def import *
+from DynamixelSDK.ros.dynamixel_sdk.src.dynamixel_sdk import *
+from DynamixelSDK.ros.dynamixel_sdk.src.dynamixel_sdk.port_handler import PortHandler
+from DynamixelSDK.ros.dynamixel_sdk.src.dynamixel_sdk.packet_handler import PacketHandler
+from DynamixelSDK.ros.dynamixel_sdk.src.dynamixel_sdk.robotis_def import *
 from manipulator.msg import *
 from manipulator_description import Manipulator
 from geometry_msgs.msg import Point
@@ -115,27 +115,27 @@ class MotorControlHub:
         self.set_ax_speed = AXSyncSetMovingSpeed()
 
         self.manipulator = Manipulator()
-        
+
         self.target_position = Point()
-        
+
 
         #테스트용(이후에 지워야함)
         self.target_position.x = 10
         self.target_position.y = 20
         self.target_position.z = 20
-        
+
 
         #아래방향 바라봄
         self.orientation_matrix = [
             [1,0,0],
             [0,-1,0],
             [0,0,-1]
-        ] 
+        ]
 
         self.gripper_position = 512
 
         self.target_position_flag = False
-        
+
         self.set_pos.ax_id = AX_DXL_ID
         self.set_pos.xm_id_p1 = XM_DXL_ID_P1
         self.set_pos.xm_id_p2 = XM_DXL_ID_P2
@@ -146,7 +146,7 @@ class MotorControlHub:
 
         self.set_ax_speed.id = AX_DXL_ID
         self.set_ax_speed.speed = [100,100]#[100, 100, 100]
-        
+
         rospy.Subscriber('target_position', Point, self.set_target_position_callback, queue_size=1)
         rospy.Subscriber('grip',Bool, self.gripper_callback, queue_size=1)
 
@@ -213,7 +213,7 @@ class MotorControlHub:
                 return
             if(dxl_error != 0) :
                 return
-            
+
         for id in XM_DXL_ID_P1:
             dxl_present_position, dxl_comm_result, dxl_error = xm_packet_handler_p1.read4ByteTxRx(port_handler, id, XM_ADDR_PRESENT_POSITION)
             present_position.xm_position_p1.append(dxl_present_position)
@@ -232,7 +232,7 @@ class MotorControlHub:
 
         self.pos_pub.publish(present_position)
 
-    
+
     def present_speed_callback(self) : #현재 speed를 publish 해줌
         present_speed = AXSyncSetMovingSpeed()
 
@@ -249,18 +249,18 @@ class MotorControlHub:
 
         self.ax_speed_pub.publish(present_speed)
 
-    
+
     def set_target_position(self):
         target_pos = [self.target_position.x, self.target_position.y, self.target_position.z]
         motor_angles = self.manipulator.manipulator_link.inverse_kinematics(target_position=target_pos,target_orientation=self.orientation_matrix,orientation_mode="all")
         if self.check_inverse_kinematics(target_pos,motor_angles) is False:
             print("도달할 수 없는 타겟")
             return
-        
+
         motor_angles = np.append(np.array(motor_angles[1:7]), [self.gripper_position])
 
         self.manipulator.set_position(motor_angles)
-    
+
     def check_inverse_kinematics(self, target_position, motor_angles):
         return self.distance_target_point(np.transpose(np.array(self.manipulator.manipulator_link.forward_kinematics(motor_angles)[:3,3:]))[0], target_position)
 
@@ -277,7 +277,7 @@ class MotorControlHub:
 
 def main():
     rospy.init_node('motor_control_hub')
- 
+
 
     try:
         port_handler.openPort()
@@ -349,7 +349,7 @@ def main():
             xm_packet_handler_p2.write4ByteTxRx(port_handler, id, XM_ADDR_PROFILE_VELOCITY, XM_PROFILE_VELOCITY)
         print(f"DYNAMIXEL(ID : {id}) has been successfully connected")
 
-    
+
     print("Ready to get & set Position.")
 
     ############################################################################################################

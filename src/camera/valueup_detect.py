@@ -24,12 +24,13 @@ class Depth_Camera():
 
     def __init__(self):
         self.pospub = rospy.Publisher('target_position', Point, queue_size=1)
-        self.position = Point
         self.pipeline = rs.pipeline()
         self.config = rs.config()
         self.align = None
         self.align_to = None
         self.detect = False
+        self.position = Point()
+
 
         context = rs.context()
         connect_device = None
@@ -63,10 +64,12 @@ class Depth_Camera():
                 depth_frame = aligned_frames.get_depth_frame()
                 color_frame = aligned_frames.get_color_frame()
                 depth_info = depth_frame.as_depth_frame()
+
+                color_intrinsics = color_frame.profile.as_video_stream_profile().intrinsics # 내부 파라미터
                 
                 color_image = np.asanyarray(color_frame.get_data())
-                #color_image = cv2.resize(color_image, (WITDH, HEIGHT))
-                color_image = cv2.resize(color_image, (640, 640))
+                color_image = cv2.resize(color_image, (WIDTH, HEIGHT)) # 원본으로 resize해야 world 좌표가 잘 나옴
+                # 객체 인지도 1280 x 720이 더 잘 됨
                 
                 results = model(color_image, stream=True)
 
@@ -87,6 +90,7 @@ class Depth_Camera():
                             cx = int((xyxy[2]+xyxy[0])//2)
                             cy = int((xyxy[3]+xyxy[1])//2)
                             obj_centers.append([cx,cy]) # 중심
+                            
 
                 result_boxes = cv2.dnn.NMSBoxes(bboxes, confidences, 0.25, 0.45, 0.5)
   
@@ -104,6 +108,18 @@ class Depth_Camera():
                         print("Depth : ", round((depth_info.get_distance(cx, cy) * 100), 2), "cm")
 
                         depth = round((depth_info.get_distance(cx, cy) * 100), 2)
+
+                        wx, wy, wz = rs.rs2_deproject_pixel_to_point(color_intrinsics, [cx, cy], depth)
+                        # wx, wy, wz가 real world coordinator
+                        # 단위는 cm
+                        
+                        print(wx, wy, wz)
+
+                        self.position.x = wx
+                        self.position.y = wz
+                        self.position.z = -wy
+
+                        self.pospub.publish(self.position)
                         
                         
                     try:

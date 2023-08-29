@@ -124,6 +124,9 @@ class MotorControlHub:
         self.target_position.y = 50
         self.target_position.z = 4
 
+        self.save_point_position = [0, 0, 0]
+
+
 
         #아래방향 바라봄
         self.orientation_matrix = [
@@ -135,6 +138,9 @@ class MotorControlHub:
         self.gripper_position = 512
 
         self.target_position_flag = False
+        self.target_arrived = False
+        self.save_point_arrived = False
+
 
         self.set_pos.ax_id = AX_DXL_ID
         self.set_pos.xm_id_p1 = XM_DXL_ID_P1
@@ -148,7 +154,6 @@ class MotorControlHub:
         self.set_ax_speed.speed = [100, 100, 100]
 
         rospy.Subscriber('target_position', Point, self.set_target_position_callback, queue_size=1)
-        rospy.Subscriber('grip',Bool, self.gripper_callback, queue_size=1)
 
         rospy.Subscriber('set_position',SyncSetPosition, self.set_goal_pos_callback, queue_size=1)
         rospy.Subscriber('set_ax_speed',AXSyncSetMovingSpeed, self.set_ax_moving_speed_callback, queue_size=1)
@@ -162,10 +167,12 @@ class MotorControlHub:
         self.target_position_flag = True
 
 
-    def gripper_callback(self,msg:Bool):
-        if msg.data is True:
+    def grip(self):
+        if self.target_arrived is True and self.save_point_arrived is False:
             self.gripper_position = 100
-        else:
+
+    def degrip(self):
+        if self.save_point_arrived is True and self.target_arrived is False:
             self.gripper_position = 512
 
 
@@ -253,9 +260,17 @@ class MotorControlHub:
     def set_target_position(self):
         target_pos = [self.target_position.x, self.target_position.y, self.target_position.z]
         motor_angles = self.manipulator.manipulator_link.inverse_kinematics(target_position=target_pos,target_orientation=self.orientation_matrix,orientation_mode="all")
+
+        present_motor_angles = [0.0, self.manipulator.xm_position_p2_angle[0], self.manipulator.xm_position_p2_angle[1], self.manipulator.xm_position_p2_angle[2],
+                                self.manipulator.xm_position_p1_angle[0], self.manipulator.xm_position_p1_angle[1], self.manipulator.ax_position_angle[0], self.manipulator.ax_position_angle[1], 0.0]
+
         if self.check_inverse_kinematics(target_pos,motor_angles) is False:
             print("도달할 수 없는 타겟")
             return
+
+        self.target_arrived = self.distance_target_point_between_present_position(target_pos, present_motor_angles)
+        self.save_point_arrived = self.distance_target_point_between_present_position(self.save_point_position, present_motor_angles)
+
 
         motor_angles = np.append(np.array(motor_angles[1:7]), [self.gripper_position])
 
@@ -267,11 +282,14 @@ class MotorControlHub:
 
     def distance_target_point(self, p1, p2):
         distance = ((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2 + (p1[2]-p2[2])**2)**(1/2)
-        print("distance: ",distance)
         if distance > 1:
             return False
         else:
             return True
+
+    def distance_target_point_between_present_position(self, target_position, motor_angles):
+        return self.distance_target_point(target_position, np.transpose(np.array(self.manipulator.manipulator_link.forward_kinematics(motor_angles)[:3,3:]))[0])
+
 
 
 
@@ -368,8 +386,13 @@ def main():
         data_hub.present_position_callback()
         data_hub.present_speed_callback()
 
+        data_hub.grip()
+        data_hub.degrip()
+
         # if data_hub.target_position_flag is True:
         data_hub.set_target_position()
+
+
 
         rate.sleep()
 

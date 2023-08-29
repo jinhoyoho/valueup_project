@@ -30,9 +30,9 @@ class Manipulator:
 
         self.fixed_frame_length = 2.7
 
-        self.ax_position = []
-        self.xm_position_p1 = []
-        self.xm_position_p2 = []
+        self.ax_position_angle = []
+        self.xm_position_p1_angle = []
+        self.xm_position_p2_angle = []
         self.ax_speed = []
 
         self.position_pub_data = SyncSetPosition()
@@ -98,12 +98,12 @@ class Manipulator:
 
     
     def position_callback(self, msg:SyncSetPosition):
-        self.ax_position = msg.ax_position
-        self.xm_position_p1 = msg.xm_position_p1
-        self.xm_position_p2 = msg.xm_position_p2
-        print("XM_P2_position: ", self.xm_position_p2)
-        print("XM_P1_position: ", self.xm_position_p1)
-        print("AX_position   : ", self.ax_position)
+        self.ax_position_angle = ax_position_to_rad(msg.ax_position)
+        self.xm_position_p1_angle = xm_position_to_rad(msg.xm_position_p1)
+        self.xm_position_p2_angle = xm_position_to_rad(msg.xm_position_p2)
+        print("XM_P2_position: ", msg.xm_position_p2)
+        print("XM_P1_position: ", msg.xm_position_p1)
+        print("AX_position   : ", msg.ax_position)
 
     
     def ax_speed_callback(self, msg:AXSyncSetMovingSpeed):

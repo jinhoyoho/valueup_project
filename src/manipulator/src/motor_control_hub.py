@@ -181,12 +181,15 @@ class MotorControlHub:
         if self.target_arrived is True and self.save_point_arrived is False:
             self.gripper_position = 100
             self.target_position = self.save_point_position
+            return True
+        return False
 
     def degrip(self):
         if self.save_point_arrived is True and self.target_arrived is False:
             self.gripper_position = 512
             self.target_position = self.init_point_position
-
+            return True
+        return False
 
     def set_goal_pos_callback(self,data):
         self.set_pos = data
@@ -390,6 +393,8 @@ def main():
     data_hub = MotorControlHub()
     rate = rospy.Rate(30)
 
+    grip_rate = rospy.Rate(0.3)
+
     while not rospy.is_shutdown():
 
         data_hub.set_goal_pos(data_hub.set_pos)
@@ -398,8 +403,13 @@ def main():
         data_hub.present_position_callback()
         data_hub.present_speed_callback()
 
-        data_hub.grip()
-        data_hub.degrip()
+        gripped = data_hub.grip()
+        if gripped is True:
+            grip_rate.sleep()
+            
+        dedripped = data_hub.degrip()
+        if dedripped is True:
+            grip_rate.sleep()
 
         if data_hub.target_position_flag is True:
             data_hub.set_target_position()

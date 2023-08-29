@@ -15,7 +15,7 @@ from time import time
 WIDTH = 1280
 HEIGHT = 720
 
-model = YOLO('valueup.pt')
+model = YOLO('valbest.pt')
 CLASSES = yaml_load(check_yaml('valueup_data.yaml'))['names']
 colors = np.random.uniform(0, 255, size=(len(CLASSES), 3))
 

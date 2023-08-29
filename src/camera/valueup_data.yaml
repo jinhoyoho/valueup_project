@@ -2,8 +2,8 @@ train: ../train/images
 val: ../valid/images
 test: ../test/images
 
-nc: 2
-names: ['Hammer', 'plier']
+nc: 5
+names: ['hammer', 'screwdriver', 'tapemeasure', 'cutter', 'stapler']
 
 roboflow:
   workspace: university-of-heidelberg

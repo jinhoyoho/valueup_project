@@ -62,7 +62,7 @@ test_link = Chain(name='test_arm' , links = [
     ),
     URDFLink(
         name="sixth_link",
-        origin_translation=[0,0,4.3],
+        origin_translation=[0,0,0],
         origin_orientation=[0,0,0],
         joint_type="fixed"
     )
@@ -72,7 +72,7 @@ test_link = Chain(name='test_arm' , links = [
 ax = plt.figure().add_subplot(111, projection='3d')
 
 
-angle=test_link.inverse_kinematics(target_position=[10,20,20],target_orientation=[[1,0,0],[0,-1,0],[0,0,-1]],orientation_mode="all")
+angle=test_link.inverse_kinematics(target_position=[0,50,4],target_orientation=[[1,0,0],[0,-1,0],[0,0,-1]],orientation_mode="all")
 print(angle)
 print(xm_rad_to_position(angle[1]))
 print(xm_rad_to_position(angle[2]))
@@ -83,5 +83,5 @@ print(ax_rad_to_position(angle[5]))
 print(ax_rad_to_position(angle[6]))
 
 # test_link.plot([0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0], ax)
-test_link.plot(test_link.inverse_kinematics(target_position=[10,20,20],target_orientation=[[1,0,0],[0,-1,0],[0,0,-1]],orientation_mode="all"), ax) #각도는 순서대로 (OriginLink, First, Second, Third, Fourth), OriginLink는 0 라디안 고정
+test_link.plot(test_link.inverse_kinematics(target_position=[0,50,4],target_orientation=[[1,0,0],[0,-1,0],[0,0,-1]],orientation_mode="all"), ax) #각도는 순서대로 (OriginLink, First, Second, Third, Fourth), OriginLink는 0 라디안 고정
 plt.show()

@@ -49,7 +49,7 @@ AX_ADDR_PUNCH                  = 48 # 모터에 가하는 최소 전류 -> 다�
 
 AX_PROTOCOL_VERSION = 1.0
 
-AX_DXL_ID = [5,6]#[5,6,7]
+AX_DXL_ID = [5,6,7]
 
 BAUDRATE = 115200
 
@@ -120,9 +120,9 @@ class MotorControlHub:
 
 
         #테스트용(이후에 지워야함)
-        self.target_position.x = 10
-        self.target_position.y = 20
-        self.target_position.z = 20
+        self.target_position.x = 0
+        self.target_position.y = 50
+        self.target_position.z = 4
 
 
         #아래방향 바라봄
@@ -140,12 +140,12 @@ class MotorControlHub:
         self.set_pos.xm_id_p1 = XM_DXL_ID_P1
         self.set_pos.xm_id_p2 = XM_DXL_ID_P2
 
-        self.set_pos.ax_position = [512,512]#[512, 512, 512]
+        self.set_pos.ax_position = [512, 512, 512]
         self.set_pos.xm_position_p1 = [2048+1024,2048-1024]
         self.set_pos.xm_position_p2 = [2048,2048+100,2048-100]#[2048, 2048, 2048, 2048, 2048]
 
         self.set_ax_speed.id = AX_DXL_ID
-        self.set_ax_speed.speed = [100,100]#[100, 100, 100]
+        self.set_ax_speed.speed = [100, 100, 100]
 
         rospy.Subscriber('target_position', Point, self.set_target_position_callback, queue_size=1)
         rospy.Subscriber('grip',Bool, self.gripper_callback, queue_size=1)
@@ -267,7 +267,7 @@ class MotorControlHub:
 
     def distance_target_point(self, p1, p2):
         distance = ((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2 + (p1[2]-p2[2])**2)**(1/2)
-        # print("distance: ",distance)
+        print("distance: ",distance)
         if distance > 1:
             return False
         else:

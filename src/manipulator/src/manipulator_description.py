@@ -12,7 +12,7 @@ import numpy as np
 
 from tool import *
 
-AX_DXL_ID = [5,6]#[5,6,7]
+AX_DXL_ID = [5,6,7]
 
 XM_DXL_ID_P1 = [3,4]
 XM_DXL_ID_P2 = [0,1,2]
@@ -127,7 +127,7 @@ class Manipulator:
 
         self.position_pub_data.ax_position.append(ax_rad_to_position(angles[4]))
         self.position_pub_data.ax_position.append(ax_rad_to_position(angles[5]))
-        # self.position_pub_data.ax_position.append(int(angles[6]))
+        self.position_pub_data.ax_position.append(int(angles[6]))
         
         # print(self.position_pub_data.xm_position_p2, self.position_pub_data.xm_position_p1 , self.position_pub_data.ax_position)
 

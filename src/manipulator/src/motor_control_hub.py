@@ -137,6 +137,7 @@ class MotorControlHub:
         self.init_point_position.y = 20
         self.init_point_position.z = 20
 
+        self.grip_time_check = True
 
         #아래방향 바라봄
         self.orientation_matrix = [
@@ -178,14 +179,14 @@ class MotorControlHub:
 
 
     def grip(self):
-        if self.target_arrived is True and self.save_point_arrived is False:
+        if self.target_arrived is True and self.save_point_arrived is False and self.grip_time_check is True:
             self.gripper_position = 100
             self.target_position = self.save_point_position
             return True
         return False
 
     def degrip(self):
-        if self.save_point_arrived is True and self.target_arrived is False:
+        if self.save_point_arrived is True and self.target_arrived is False and self.grip_time_check is True:
             self.gripper_position = 512
             self.target_position = self.init_point_position
             return True
@@ -406,10 +407,18 @@ def main():
         gripped = data_hub.grip()
         if gripped is True:
             grip_rate.sleep()
-            
+            current_time = time.time()
+
         dedripped = data_hub.degrip()
         if dedripped is True:
             grip_rate.sleep()
+            current_time = time.time()
+
+        if(time.time() - current_time > 3):
+            data_hub.grip_time_check = True
+        else:
+            data_hub.grip_time_check = False
+        
 
         if data_hub.target_position_flag is True:
             data_hub.set_target_position()

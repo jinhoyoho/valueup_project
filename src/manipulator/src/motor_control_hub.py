@@ -118,14 +118,24 @@ class MotorControlHub:
 
         self.target_position = Point()
 
-
         #테스트용(이후에 지워야함)
         self.target_position.x = 0
         self.target_position.y = 50
         self.target_position.z = 4
 
-        self.save_point_position = [0, 0, 0]
 
+
+        self.save_point_position = Point()
+        
+        self.save_point_position.x = 0
+        self.save_point_position.y = -20
+        self.save_point_position.z = 10
+
+        self.init_point_position = Point()
+        
+        self.init_point_position.x = 0
+        self.init_point_position.y = 20
+        self.init_point_position.z = 20
 
 
         #아래방향 바라봄
@@ -170,10 +180,12 @@ class MotorControlHub:
     def grip(self):
         if self.target_arrived is True and self.save_point_arrived is False:
             self.gripper_position = 100
+            self.target_position = self.save_point_position
 
     def degrip(self):
         if self.save_point_arrived is True and self.target_arrived is False:
             self.gripper_position = 512
+            self.target_position = self.init_point_position
 
 
     def set_goal_pos_callback(self,data):
@@ -389,8 +401,8 @@ def main():
         data_hub.grip()
         data_hub.degrip()
 
-        # if data_hub.target_position_flag is True:
-        data_hub.set_target_position()
+        if data_hub.target_position_flag is True:
+            data_hub.set_target_position()
 
 
 

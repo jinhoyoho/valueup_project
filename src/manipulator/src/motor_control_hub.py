@@ -60,7 +60,7 @@ AX_CCW_COMPLIANCE_MARGIN = 0
 AX_CW_COMPLIANCE_SLOPE = 64
 AX_CCW_COMPLIANCE_SLOPE = 64
 
-DEVICENAME = '/dev/ttyUSB0'
+DEVICENAME = '/dev/ttyUSB1'
 
 
 port_handler = PortHandler(DEVICENAME)
@@ -117,13 +117,18 @@ class MotorControlHub:
         self.manipulator = Manipulator()
         
         self.target_position = Point()
-        
+        self.previous_position = Point()
+        self.save_position = Point()
 
         #테스트용(이후에 지워야함)
         self.target_position.x = 0
         self.target_position.y = 30
         self.target_position.z = 20
         
+        self.previous_position = self.target_position
+        
+
+
 
         #아래방향 바라봄
         self.orientation_matrix = [
@@ -158,30 +163,59 @@ class MotorControlHub:
         self.ax_speed_pub = rospy.Publisher('present_ax_speed', AXSyncSetMovingSpeed, queue_size=1)
 
 
+    def point_distance(self, p1:Point, p2:Point):
+        return ((p1.x-p2.x)**2+(p1.y-p2.y)**2+(p1.z-p2.z)**2)**(1/2)
+
     def set_target_position_callback(self,data:Point):
         self.target_position = data
         self.target_position.z += 10
-        self.set_target_position()
-        rospy.Rate(0.2).sleep()
 
+        dis = self.point_distance(self.target_position, self.previous_position)
+        self.set_target_position()
+        rospy.Rate(5.0/dis).sleep()
+        self.previous_position.x = self.target_position.x
+        self.previous_position.y = self.target_position.y
+        self.previous_position.z = self.target_position.z
+        
+        ###############################################################################
         self.target_position.z -= 10
-        self.set_target_position()
-        rospy.Rate(0.3).sleep()
 
+        dis = self.point_distance(self.target_position, self.previous_position)
+        self.set_target_position()
+        rospy.Rate(5.0/dis).sleep()
+        
+        self.previous_position.x = self.target_position.x
+        self.previous_position.y = self.target_position.y
+        self.previous_position.z = self.target_position.z
+        ###############################################################################
         self.gripper_position = 150
         self.set_target_position()
         rospy.Rate(0.3).sleep()
-
+        ################################################################################
         self.target_position.z += 10
-        self.set_target_position()
-        rospy.Rate(0.3).sleep()
 
+        dis = self.point_distance(self.target_position, self.previous_position)
+        self.set_target_position()
+        rospy.Rate(5/dis).sleep()
+        
+        self.previous_position.x = self.target_position.x
+        self.previous_position.y = self.target_position.y
+        self.previous_position.z = self.target_position.z
+        
+        ###############################################################################
         self.target_position.x = 0
-        self.target_position.y = -30
+        self.target_position.y = 30
         self.target_position.z = 10
-        self.set_target_position()
-        rospy.Rate(0.3).sleep()
 
+        dis = self.point_distance(self.target_position, self.previous_position)
+        self.set_target_position()
+        rospy.Rate(8/dis).sleep()
+        
+        self.previous_position.x = self.target_position.x
+        self.previous_position.y = self.target_position.y
+        self.previous_position.z = self.target_position.z
+        
+        ##############################################################################
         self.gripper_position = 512
         self.set_target_position()
 
@@ -264,7 +298,9 @@ class MotorControlHub:
             return
         
         if target_y_check is True:
-            motor_angles[1] += math.pi
+            motor_angles[1] -= math.pi
+            if motor_angles[1] < -math.pi:
+                motor_angles[1] += 2*math.pi
 
         motor_angles = np.append(np.array(motor_angles[1:7]), [self.gripper_position])
 
@@ -375,7 +411,9 @@ def main():
 
         data_hub.present_position_callback()
 
-        
+        if data_hub.target_position_flag is False:
+            data_hub.set_target_position()
+            data_hub.target_position_flag = True
 
         rate.sleep()
 

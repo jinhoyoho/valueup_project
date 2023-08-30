@@ -31,6 +31,8 @@ class Depth_Camera():
         self.detect = False
         self.position = Point()
 
+        self.translate_vector = np.array([0, 0.2, 0.3])
+        self.rotate_degree = -30
 
         context = rs.context()
         connect_device = None
@@ -44,6 +46,22 @@ class Depth_Camera():
 
     def __del__(self):
         print("Collecting process is done.\n")
+    
+    def rotate_x(vector, degree):
+        # Degree to Radian
+        rad = np.radians(degree)
+        
+        # Rotation Matrix
+        rotation_matrix = np.array([
+            [1, 0, 0],
+            [0, np.cos(rad), -np.sin(rad)],
+            [0, np.sin(rad), np.cos(rad)]
+        ])
+        
+        return np.dot(rotation_matrix, vector)
+    
+    def translate(vector, translation):
+        return vector + translation
 
     def execute(self):
         print('Collecting depth information...')
@@ -115,9 +133,18 @@ class Depth_Camera():
                         
                         print(wx, wy, wz)
 
-                        self.position.x = wx
-                        self.position.y = wz
-                        self.position.z = -wy
+                        vector = np.array([wx, wz, -wy])
+
+                        # x축을 중심으로 d도 회전
+                        rotated_vector = self.rotate_x(vector, self.rotate_degree)
+
+                        translated_vector = self.translate(rotated_vector, self.translate_vector)
+
+                        self.position.x = translated_vector[0]
+                        self.position.y = translated_vector[1]
+                        self.position.z = translated_vector[2]
+
+
 
                         self.pospub.publish(self.position)
                         

@@ -6,8 +6,6 @@ import rospy
 
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))))
 
-print(os.path.dirname(os.path.abspath(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))))
-
 from DynamixelSDK.ros.dynamixel_sdk.src.dynamixel_sdk import *
 from DynamixelSDK.ros.dynamixel_sdk.src.dynamixel_sdk.port_handler import PortHandler
 from DynamixelSDK.ros.dynamixel_sdk.src.dynamixel_sdk.packet_handler import PacketHandler
@@ -18,6 +16,7 @@ from geometry_msgs.msg import Point
 from std_msgs.msg import Bool
 import numpy as np
 
+import math
 import sys, tty, termios
 
 fd = sys.stdin.fileno()
@@ -58,10 +57,10 @@ AX_TORQUE_DISABLE = 0
 
 AX_CW_COMPLIANCE_MARGIN = 0 #실제로 설정하려는 값
 AX_CCW_COMPLIANCE_MARGIN = 0
-AX_CW_COMPLIANCE_SLOPE = 64
-AX_CCW_COMPLIANCE_SLOPE = 64
+AX_CW_COMPLIANCE_SLOPE = 128
+AX_CCW_COMPLIANCE_SLOPE = 128
 
-DEVICENAME = '/dev/ttyUSB0'
+DEVICENAME = '/dev/ttyUSB1'
 
 
 port_handler = PortHandler(DEVICENAME)
@@ -99,10 +98,11 @@ XM_DXL_ID_P2 = [0,1,2]
 XM_TORQUE_ENABLE = 1
 XM_TORQUE_DISABLE = 0
 
-XM_PROFILE_VELOCITY = 30
-
 xm_packet_handler_p1 = PacketHandler(XM_PROTOCOL_VERSION_1)
 xm_packet_handler_p2 = PacketHandler(XM_PROTOCOL_VERSION_2)
+
+
+MOTOR_VELOCITY = [20, 20, 20, 20, 20, 50, 50, 100]
 
 
 #**********************************************************************************#
@@ -112,47 +112,32 @@ class MotorControlHub:
     def __init__(self):
 
         self.set_pos = SyncSetPosition()
-        self.set_ax_speed = AXSyncSetMovingSpeed()
 
         self.manipulator = Manipulator()
-
+        
         self.target_position = Point()
+        self.previous_position = Point()
+        self.save_position = Point()
 
         #테스트용(이후에 지워야함)
         self.target_position.x = 0
-        self.target_position.y = 50
-        self.target_position.z = 4
-
-
-
-        self.save_point_position = Point()
+        self.target_position.y = 30
+        self.target_position.z = 20
         
-        self.save_point_position.x = 0
-        self.save_point_position.y = -20
-        self.save_point_position.z = 10
+        self.previous_position = self.target_position
 
-        self.init_point_position = Point()
-        
-        self.init_point_position.x = 0
-        self.init_point_position.y = 20
-        self.init_point_position.z = 20
-
-        self.grip_time_check = True
 
         #아래방향 바라봄
         self.orientation_matrix = [
             [1,0,0],
             [0,-1,0],
             [0,0,-1]
-        ]
+        ] 
 
         self.gripper_position = 512
 
         self.target_position_flag = False
-        self.target_arrived = False
-        self.save_point_arrived = False
-
-
+        
         self.set_pos.ax_id = AX_DXL_ID
         self.set_pos.xm_id_p1 = XM_DXL_ID_P1
         self.set_pos.xm_id_p2 = XM_DXL_ID_P2
@@ -161,43 +146,82 @@ class MotorControlHub:
         self.set_pos.xm_position_p1 = [2048+1024,2048-1024]
         self.set_pos.xm_position_p2 = [2048,2048+100,2048-100]#[2048, 2048, 2048, 2048, 2048]
 
-        self.set_ax_speed.id = AX_DXL_ID
-        self.set_ax_speed.speed = [100, 100, 100]
-
+        
         rospy.Subscriber('target_position', Point, self.set_target_position_callback, queue_size=1)
+        rospy.Subscriber('grip',Bool, self.gripper_callback, queue_size=1)
 
         rospy.Subscriber('set_position',SyncSetPosition, self.set_goal_pos_callback, queue_size=1)
-        rospy.Subscriber('set_ax_speed',AXSyncSetMovingSpeed, self.set_ax_moving_speed_callback, queue_size=1)
 
         self.pos_pub = rospy.Publisher('present_position', SyncSetPosition, queue_size=1)
-        self.ax_speed_pub = rospy.Publisher('present_ax_speed', AXSyncSetMovingSpeed, queue_size=1)
 
 
-    def set_target_position_callback(self,data):
+    def point_distance(self, p1:Point, p2:Point):
+        return ((p1.x-p2.x)**2+(p1.y-p2.y)**2+(p1.z-p2.z)**2)**(1/2)
+
+    def set_target_position_callback(self,data:Point):
         self.target_position = data
-        self.target_position_flag = True
+        self.target_position.z += 10
+
+        dis = self.point_distance(self.target_position, self.previous_position)
+        self.set_target_position()
+        rospy.Rate(5.0/dis).sleep()
+        self.previous_position.x = self.target_position.x
+        self.previous_position.y = self.target_position.y
+        self.previous_position.z = self.target_position.z
+        
+        ###############################################################################
+        self.target_position.z -= 10
+
+        dis = self.point_distance(self.target_position, self.previous_position)
+        self.set_target_position()
+        rospy.Rate(5.0/dis).sleep()
+        
+        self.previous_position.x = self.target_position.x
+        self.previous_position.y = self.target_position.y
+        self.previous_position.z = self.target_position.z
+        ###############################################################################
+        self.gripper_position = 150
+        self.set_target_position()
+        rospy.Rate(0.3).sleep()
+        ################################################################################
+        self.target_position.z += 10
+
+        dis = self.point_distance(self.target_position, self.previous_position)
+        self.set_target_position()
+        rospy.Rate(5/dis).sleep()
+        
+        self.previous_position.x = self.target_position.x
+        self.previous_position.y = self.target_position.y
+        self.previous_position.z = self.target_position.z
+        
+        ###############################################################################
+        self.target_position.x = 0
+        self.target_position.y = 30
+        self.target_position.z = 10
+
+        dis = self.point_distance(self.target_position, self.previous_position)
+        self.set_target_position()
+        rospy.Rate(8/dis).sleep()
+        
+        self.previous_position.x = self.target_position.x
+        self.previous_position.y = self.target_position.y
+        self.previous_position.z = self.target_position.z
+        
+        ##############################################################################
+        self.gripper_position = 512
+        self.set_target_position()
 
 
-    def grip(self):
-        if self.target_arrived is True and self.save_point_arrived is False and self.grip_time_check is True:
-            self.gripper_position = 100
-            self.target_position = self.save_point_position
-            return True
-        return False
-
-    def degrip(self):
-        if self.save_point_arrived is True and self.target_arrived is False and self.grip_time_check is True:
+    def gripper_callback(self,msg:Bool):
+        if msg.data is True:
+            self.gripper_position = 200
+        else:
             self.gripper_position = 512
-            self.target_position = self.init_point_position
-            return True
-        return False
+
 
     def set_goal_pos_callback(self,data):
         self.set_pos = data
 
-
-    def set_ax_moving_speed_callback(self,data):
-        self.set_ax_speed = data
 
 
     def set_goal_pos(self,data:SyncSetPosition):
@@ -213,11 +237,6 @@ class MotorControlHub:
             # print("Set Goal XM_Position of ID %s = %s" % (data.xm_id[idx], data.xm_position[idx]))
             xm_packet_handler_p2.write4ByteTxRx(port_handler,data.xm_id_p2[idx], XM_ADDR_GOAL_POSITION, data.xm_position_p2[idx])
 
-
-    def set_ax_moving_speed(self,data:AXSyncSetMovingSpeed): #저장된 speed는 이 함수를 통해 입력된다
-        for idx in range(len(data.id)) :
-            # print("Set AX_Moving Speed of ID %s = %s" % (data.id[idx], data.speed[idx]))
-            ax_packet_handler.write2ByteTxRx(port_handler, data.id[idx], AX_ADDR_MOVING_SPEED, data.speed[idx])
 
 
     def present_position_callback(self):
@@ -236,7 +255,7 @@ class MotorControlHub:
                 return
             if(dxl_error != 0) :
                 return
-
+            
         for id in XM_DXL_ID_P1:
             dxl_present_position, dxl_comm_result, dxl_error = xm_packet_handler_p1.read4ByteTxRx(port_handler, id, XM_ADDR_PRESENT_POSITION)
             present_position.xm_position_p1.append(dxl_present_position)
@@ -252,66 +271,50 @@ class MotorControlHub:
                 return
             if(dxl_error != 0) :
                 return
-
         self.pos_pub.publish(present_position)
 
-
-    def present_speed_callback(self) : #현재 speed를 publish 해줌
-        present_speed = AXSyncSetMovingSpeed()
-
-        present_speed.id = AX_DXL_ID
-        present_speed.speed = []
-
-        for id in AX_DXL_ID:
-            dxl_present_speed, dxl_comm_result, dxl_error = ax_packet_handler.read2ByteTxRx(port_handler, id, AX_ADDR_PRESENT_SPEED)
-            present_speed.speed.append(dxl_present_speed%1024)
-            if(dxl_comm_result != COMM_SUCCESS) :
-                return
-            if(dxl_error != 0) :
-                return
-
-        self.ax_speed_pub.publish(present_speed)
-
-
+    
     def set_target_position(self):
         target_pos = [self.target_position.x, self.target_position.y, self.target_position.z]
+
+        target_y_check = False
+        if self.target_position.y < 0:
+            target_pos[0] *= -1
+            target_pos[1] *= -1
+            print("check: ", target_pos)
+            target_y_check = True
+
         motor_angles = self.manipulator.manipulator_link.inverse_kinematics(target_position=target_pos,target_orientation=self.orientation_matrix,orientation_mode="all")
-
-        present_motor_angles = [0.0, self.manipulator.xm_position_p2_angle[0], self.manipulator.xm_position_p2_angle[1], self.manipulator.xm_position_p2_angle[2],
-                                self.manipulator.xm_position_p1_angle[0], self.manipulator.xm_position_p1_angle[1], self.manipulator.ax_position_angle[0], self.manipulator.ax_position_angle[1], 0.0]
-
         if self.check_inverse_kinematics(target_pos,motor_angles) is False:
             print("도달할 수 없는 타겟")
             return
-
-        self.target_arrived = self.distance_target_point_between_present_position(target_pos, present_motor_angles)
-        self.save_point_arrived = self.distance_target_point_between_present_position(self.save_point_position, present_motor_angles)
-
+        
+        if target_y_check is True:
+            motor_angles[1] -= math.pi
+            if motor_angles[1] < -math.pi:
+                motor_angles[1] += 2*math.pi
 
         motor_angles = np.append(np.array(motor_angles[1:7]), [self.gripper_position])
 
         self.manipulator.set_position(motor_angles)
-
+    
     def check_inverse_kinematics(self, target_position, motor_angles):
         return self.distance_target_point(np.transpose(np.array(self.manipulator.manipulator_link.forward_kinematics(motor_angles)[:3,3:]))[0], target_position)
 
 
     def distance_target_point(self, p1, p2):
         distance = ((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2 + (p1[2]-p2[2])**2)**(1/2)
+        # print("distance: ",distance)
         if distance > 1:
             return False
         else:
             return True
 
-    def distance_target_point_between_present_position(self, target_position, motor_angles):
-        return self.distance_target_point(target_position, np.transpose(np.array(self.manipulator.manipulator_link.forward_kinematics(motor_angles)[:3,3:]))[0])
-
-
 
 
 def main():
     rospy.init_node('motor_control_hub')
-
+ 
 
     try:
         port_handler.openPort()
@@ -349,7 +352,7 @@ def main():
             ax_packet_handler.write1ByteTxRx(port_handler, id, AX_ADDR_CCW_COMPLIANCE_MARGIN, AX_CCW_COMPLIANCE_MARGIN) #초기 margin 설정
             ax_packet_handler.write1ByteTxRx(port_handler, id, AX_ADDR_CW_COMPLIANCE_SLOPE, AX_CW_COMPLIANCE_SLOPE) #초기 slope 설정
             ax_packet_handler.write1ByteTxRx(port_handler, id, AX_ADDR_CCW_COMPLIANCE_SLOPE, AX_CCW_COMPLIANCE_SLOPE) #초기 slope 설정
-            ax_packet_handler.write2ByteTxRx(port_handler, id, AX_ADDR_MOVING_SPEED, 100) #초기 속도 설정
+            ax_packet_handler.write2ByteTxRx(port_handler, id, AX_ADDR_MOVING_SPEED, MOTOR_VELOCITY[id]) #초기 속도 설정
 
     for id in XM_DXL_ID_P1 :
         dxl_comm_result, dxl_error = xm_packet_handler_p1.write1ByteTxRx(port_handler, id, XM_ADDR_TORQUE_ENABLE, XM_TORQUE_ENABLE)
@@ -364,7 +367,7 @@ def main():
             getch()
             quit()
         else:
-            xm_packet_handler_p1.write4ByteTxRx(port_handler, id, XM_ADDR_PROFILE_VELOCITY, XM_PROFILE_VELOCITY)
+            xm_packet_handler_p1.write4ByteTxRx(port_handler, id, XM_ADDR_PROFILE_VELOCITY, MOTOR_VELOCITY[id])
         print(f"DYNAMIXEL(ID : {id}) has been successfully connected")
 
     for id in XM_DXL_ID_P2 :
@@ -380,10 +383,10 @@ def main():
             getch()
             quit()
         else:
-            xm_packet_handler_p2.write4ByteTxRx(port_handler, id, XM_ADDR_PROFILE_VELOCITY, XM_PROFILE_VELOCITY)
+            xm_packet_handler_p2.write4ByteTxRx(port_handler, id, XM_ADDR_PROFILE_VELOCITY, MOTOR_VELOCITY[id])
         print(f"DYNAMIXEL(ID : {id}) has been successfully connected")
 
-
+    
     print("Ready to get & set Position.")
 
     ############################################################################################################
@@ -394,36 +397,15 @@ def main():
     data_hub = MotorControlHub()
     rate = rospy.Rate(30)
 
-    grip_rate = rospy.Rate(0.3)
-
     while not rospy.is_shutdown():
 
         data_hub.set_goal_pos(data_hub.set_pos)
-        data_hub.set_ax_moving_speed(data_hub.set_ax_speed)
 
         data_hub.present_position_callback()
-        data_hub.present_speed_callback()
 
-        gripped = data_hub.grip()
-        if gripped is True:
-            grip_rate.sleep()
-            current_time = time.time()
-
-        dedripped = data_hub.degrip()
-        if dedripped is True:
-            grip_rate.sleep()
-            current_time = time.time()
-
-        if(time.time() - current_time > 3):
-            data_hub.grip_time_check = True
-        else:
-            data_hub.grip_time_check = False
-        
-
-        if data_hub.target_position_flag is True:
+        if data_hub.target_position_flag is False:
             data_hub.set_target_position()
-
-
+            data_hub.target_position_flag = True
 
         rate.sleep()
 

@@ -15,9 +15,9 @@ from time import time
 WIDTH = 1280
 HEIGHT = 720
 
-model = YOLO('valbest.pt')
+model = YOLO('best.pt')
 CLASSES = yaml_load(check_yaml('valueup_data.yaml'))['names']
-colors = np.random.uniform(0, 255, size=(len(CLASSES), 3))
+colors = np.random.uniform(0, 255, size=(len(CLASSES), 3)) # RGB
 
 
 class Depth_Camera():
@@ -124,7 +124,7 @@ class Depth_Camera():
                         
                     try:
                         color = colors[i]
-                        color = (int(color[0]), int(color[1]), int(color[2]))
+                        color = (int(color[0]), int(color[1]), int(color[2]), int(color[3]), int(color[4]))
                     except:
                         print("Error")
                     cv2.rectangle(color_image, (x, y), (x2, y2), color, 2)

@@ -57,8 +57,8 @@ AX_TORQUE_DISABLE = 0
 
 AX_CW_COMPLIANCE_MARGIN = 0 #실제로 설정하려는 값
 AX_CCW_COMPLIANCE_MARGIN = 0
-AX_CW_COMPLIANCE_SLOPE = 64
-AX_CCW_COMPLIANCE_SLOPE = 64
+AX_CW_COMPLIANCE_SLOPE = 128
+AX_CCW_COMPLIANCE_SLOPE = 128
 
 DEVICENAME = '/dev/ttyUSB1'
 
@@ -112,7 +112,6 @@ class MotorControlHub:
     def __init__(self):
 
         self.set_pos = SyncSetPosition()
-        self.set_ax_speed = AXSyncSetMovingSpeed()
 
         self.manipulator = Manipulator()
         
@@ -126,8 +125,6 @@ class MotorControlHub:
         self.target_position.z = 20
         
         self.previous_position = self.target_position
-        
-
 
 
         #아래방향 바라봄
@@ -149,10 +146,6 @@ class MotorControlHub:
         self.set_pos.xm_position_p1 = [2048+1024,2048-1024]
         self.set_pos.xm_position_p2 = [2048,2048+100,2048-100]#[2048, 2048, 2048, 2048, 2048]
 
-        self.set_ax_speed.id = AX_DXL_ID
-        self.set_ax_speed.speed = [20, 20, 80]
-
-
         
         rospy.Subscriber('target_position', Point, self.set_target_position_callback, queue_size=1)
         rospy.Subscriber('grip',Bool, self.gripper_callback, queue_size=1)
@@ -160,7 +153,6 @@ class MotorControlHub:
         rospy.Subscriber('set_position',SyncSetPosition, self.set_goal_pos_callback, queue_size=1)
 
         self.pos_pub = rospy.Publisher('present_position', SyncSetPosition, queue_size=1)
-        self.ax_speed_pub = rospy.Publisher('present_ax_speed', AXSyncSetMovingSpeed, queue_size=1)
 
 
     def point_distance(self, p1:Point, p2:Point):

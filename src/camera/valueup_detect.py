@@ -11,6 +11,7 @@ import json
 import rospy
 from geometry_msgs.msg import Point
 from time import time
+from std_msgs.msg import String
 
 WIDTH = 1280
 HEIGHT = 720
@@ -23,6 +24,7 @@ colors = np.random.uniform(0, 255, size=(len(CLASSES), 3)) # RGB
 class Depth_Camera():
 
     def __init__(self):
+        self.tool_sub = rospy.Subscriber('tool_list', String, self.callback_tool, queue_size=1)
         self.pospub = rospy.Publisher('target_position', Point, queue_size=1)
         self.pipeline = rs.pipeline()
         self.config = rs.config()
@@ -30,6 +32,7 @@ class Depth_Camera():
         self.align_to = None
         self.detect = False
         self.position = Point()
+        self.tool = None
 
         self.translate_vector = np.array([0, 0.2, 0.3])
         self.rotate_degree = -30
@@ -43,6 +46,9 @@ class Depth_Camera():
         self.config.enable_device(connect_device)
         self.config.enable_stream(rs.stream.depth, WIDTH, HEIGHT, rs.format.z16, 30)
         self.config.enable_stream(rs.stream.color, WIDTH, HEIGHT, rs.format.bgr8, 30)
+
+    def callback_tool(self, msg):
+        self.tool = msg.data
 
     def __del__(self):
         print("Collecting process is done.\n")

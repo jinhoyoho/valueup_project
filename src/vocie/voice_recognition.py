@@ -9,21 +9,22 @@ from playsound import playsound
 from gtts import gTTS
 from konlpy.tag import Kkma
 from std_msgs.msg import String
-
+from PIL import Image
+import re
 """
 간단 수정법
 
 인식하고 싶은 물체를 tool_list에 적는다(한글)
 그 물체에 대응되는 영어 단어를 같은 위치에 적는다
 """
-system_message='너의 이름은 javas이고 친절한 개인 비서 로봇이야. 대답은 3줄 이하로 존대말로 해줘. 짧게 대답할 수 있는 말이면 1줄이나 2줄로 대답해도 괜찮아. 너는 로봇팔이 달려있는 자동차에 내장되어있어서 움직일수 있고 물건을 잡을 수 있어. 또 스피커도 내장되어 있어서 너가 하는 말은 스피커로 출력돼 그리고 너가 현재 위치한 곳은 원흥관 i-space이야'
+system_message='너의 이름은 javas이고 친절한 개인 비서 로봇이야. 대답은 3줄 이하로 존대말로 해줘. 짧게 대답할 수 있는 말이면 1줄이나 2줄로 대답해도 괜찮아. 너는 로봇팔이 달려있는 자동차에 내장되어있어서 움직일수 있고 물건을 잡을 수 있어. 또 스피커도 내장되어 있어서 너가 하는 말은 스피커로 출력돼 그리고 너가 현재 위치한 곳은 원흥관 i-space이야. 추가로 매 답변 마지막에 답변하며 지을 적절한 표정을 (웃음),(슬픔),(화남)중에 선택해서 출력해줘'
 
 tool_list = ["그라인더", "니퍼", "가위", "자", "해머", "망치", "플라이어"]
 en_tool_list = ["grinder","nipper", "scissors", "ruler", "hammer", "hammer", "pliers"]
 bring_list = ["갖","가져다주","갖다주","가지"]
 kkma=Kkma()
 file_name='sample.mp3'
-openai.api_key = "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" # API Key
+openai.api_key = "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" # API Key
 r = sr.Recognizer()
 m = sr.Microphone()
 turn_off_flag=False
@@ -31,6 +32,17 @@ recog_flag=True
 rospy.init_node('listener')
 ans_pub=rospy.Publisher("tool_list",String,queue_size=1)
 ex_answer=''
+
+
+def find_text_between_parentheses(text):
+    pattern = r'\((.*?)\)'  # 괄호 안의 문자열을 추출하는 정규 표현식
+    matches = re.findall(pattern, text)
+    return matches[0]
+
+def extract_text_outside_parentheses(text):
+    pattern = r'\([^)]*\)'  # 괄호 안의 내용을 추출하는 정규 표현식
+    result = re.sub(pattern, '', text)
+    return result
 
 def gpt_ask(text):
     # 대화 시작
@@ -48,7 +60,12 @@ def gpt_ask(text):
     # API 응답에서 답변 텍스트 추출
     answer = completion.choices[0].message['content']
 
-    return answer
+    #답변에서 얼굴 추출
+    face = find_text_between_parentheses(answer)
+    #표정 제외한 답변
+    result=extract_text_outside_parentheses(answer)
+    answer=result.strip()
+    return answer, face
 
 def callback(r, audio):
     global turn_off_flag, recog_flag, ex_answer
@@ -66,8 +83,9 @@ def callback(r, audio):
 
         if '그만' in full_text:
             turn_off_flag=True
+            face='웃음'
             print("[자바스] 장치를 종료합니다")
-            speaker("장치를 종료합니다")
+            speaker("장치를 종료합니다",face)
 
         else:
             order_flag, spoken_tool=sentence_analysis(full_text)
@@ -82,17 +100,20 @@ def callback(r, audio):
 
                 words_str = ' '.join(en_tool_answer)
                 ans_pub.publish(words_str)
-                speaker(answer)
+                face='웃음'
+                speaker(answer,face)
 
             elif order_flag is 1:
                 answer='그 물건은 가져올 수 없어요'
                 print("[자바스] "+answer)
-                speaker(answer)
+                face='슬픔'
+                speaker(answer,face)
 
             else:
-                answer=gpt_ask(text)
+                answer,face=gpt_ask(text)
                 print("[자바스] "+answer)
-                speaker(answer)
+                speaker(answer,face)
+
         recog_flag=True    
         ex_answer=answer
         
@@ -101,12 +122,92 @@ def callback(r, audio):
     except sr.RequestError as e:
         print(f"[자바스] 서버 연결에 실패하였습니다 : {e}")
 
-def speaker(text):
+def speaker(text,face):
+    if face=='화남':
+        print(
+        """
+        @@@@@@@@@,..........,@@@@@@@@@
+        @@@@.,.                .,,@@@@
+        @@@,.                    .,@@@
+        @@,.                      .,@@
+        ,.                          .,
+        ,.     ....        ....     .,
+        ,.    .~-~;        ;~-~.    .,
+        ,.        .;      ;.        .,
+        ,.       .*=;    ;=*.       .,
+        ,.       ,!!,    ,!!,       .,
+        ,..      -!!~    ~!!-      ..,
+        ,..      .!!      !!.      ..,
+        ,,..     .~~      ~~.     ..,,
+        -,...                    ...,-
+        @-...        ....       ...,-@
+        @-,...      :!!!!:     ....,-@
+        @@-,....   ;******;   ....,-@@
+        @@@-,....           .....,-@@@
+        @@@--,.....        .....,--@@@
+        @@@@--,................,--@@@@
+        @@@@@@@@@-----,,-----@@@@@@@@@
+        """
+        )
+
+    elif face=='슬픔':
+        print("""
+        @@@@@@@@@,..........,@@@@@@@@@
+        @@@@@@@,...        ...,@@@@@@@
+        @@@@.,.                .,.@@@@
+        @,.                        .,@
+        ,.       .          .       .,
+        ..      --          --      .,
+        ,.    .;,            ,:.    .,
+        ,. .!;:-              -:;!. .,
+        ,. .--.                .--. .,
+        ..                          .,
+        ..                          .,
+        ,.                          .,
+        ,.   :      :    :      :  ..,
+        ,..   ;;;;;:      :;;;;;   ..,
+        ,...  .-::-.      .-::-.  ...,
+        -,..    ..          ..    ..,-
+        @,...                    ...,@
+        @-,...                  ...,-@
+        @@,,...     ~~~~~~    ....,,@@
+        @@@-,....  ::::::::  ....,-@@@
+        @@@-,,..... ...... .....,--@@@
+        @@@@@@@-,,,........,,,-@@@@@@@
+        @@@@@@@@@-,,-,,,,-,,-@@@@@@@@@
+        """)
+    else :
+        print("""
+        @@@@@@@@@@,,......,,@@@@@@@@@@
+        @@@@@@,.              .,@@@@@@
+        @@.                        .@@
+        @,.                        .,@
+        @.        .        .        .@
+        ..       !;!      !;!       ..
+        ,.       ;~;      ;~;       .,
+        ,        ::;      ;::       .,
+        ..       ;:!      !:;       .,
+        ..        .        .        ..
+        ..                          ..
+        ,.                          .,
+        ,..                        ..,
+        ,..                        ..,
+        ,...                      ...,
+        @,..     ,:        :,     ..,@
+        @,...      :::;;:::      ...-@
+        @@,...                  ...,@@
+        @@-,...                ...,-@@
+        @@@-,...             ....,-@@@
+        @@@@@@@@@@,-,,,,,,-,@@@@@@@@@@
+        """)
+
+
     tts_ko=gTTS(text=text,lang='ko')
     tts_ko.save(file_name)
     playsound(file_name)
     if os.path.exists(file_name):
         os.remove(file_name)
+
 
 def sentence_analysis(sentence):
     '''문장에서 도구와 가져오라는 명령이 포함되면 Ture를 반환한다.'''
@@ -137,11 +238,14 @@ def sentence_analysis(sentence):
 with m as source:
     r.adjust_for_ambient_noise(m)
     print("[자바스] 인식을 시작합니다")
+    image=Image.open("smile.jpg")
+    image.show()
     while turn_off_flag==False:
         if recog_flag==True:
             print("[자바스] 듣고있어요")
-        audio=r.listen(m,phrase_time_limit=15) # phrase_time_limit = 말을 시작했을때 듣는 최대 시간
+        audio=r.listen(m,phrase_time_limit=10) # phrase_time_limit = 말을 시작했을때 듣는 최대 시간
         callback(r,audio)
+    image.close()
 
         
         

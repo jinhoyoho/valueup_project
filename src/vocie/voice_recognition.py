@@ -19,8 +19,8 @@ import re
 """
 system_message='너의 이름은 javas이고 친절한 개인 비서 로봇이야. 대답은 3줄 이하로 존대말로 해줘. 짧게 대답할 수 있는 말이면 1줄이나 2줄로 대답해도 괜찮아. 너는 로봇팔이 달려있는 자동차에 내장되어있어서 움직일수 있고 물건을 잡을 수 있어. 또 스피커도 내장되어 있어서 너가 하는 말은 스피커로 출력돼 그리고 너가 현재 위치한 곳은 원흥관 i-space이야. 추가로 매 답변 마지막에 답변하며 지을 적절한 표정을 (웃음),(슬픔),(화남)중에 선택해서 출력해줘'
 
-tool_list = ["그라인더", "니퍼", "가위", "자", "해머", "망치", "플라이어"]
-en_tool_list = ["grinder","nipper", "scissors", "ruler", "hammer", "hammer", "pliers"]
+tool_list = ["그라인더", "니퍼", "가위", "자", "해머", "망치", "플라이어", "스테이플러", "드라이버"]
+en_tool_list = ["grinder","nipper", "scissors", "tapemeasure", "hammer", "hammer", "pliers", "stapler", "screwdriver"]
 bring_list = ["갖","가져다주","갖다주","가지"]
 kkma=Kkma()
 file_name='sample.mp3'

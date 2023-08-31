@@ -55,12 +55,12 @@ BAUDRATE = 115200
 AX_TORQUE_ENABLE = 1
 AX_TORQUE_DISABLE = 0
 
-AX_CW_COMPLIANCE_MARGIN = 0 #실제로 설정하려는 값
-AX_CCW_COMPLIANCE_MARGIN = 0
+AX_CW_COMPLIANCE_MARGIN = 1 #실제로 설정하려는 값
+AX_CCW_COMPLIANCE_MARGIN = 1
 AX_CW_COMPLIANCE_SLOPE = 128
 AX_CCW_COMPLIANCE_SLOPE = 128
 
-DEVICENAME = '/dev/ttyUSB1'
+DEVICENAME = '/dev/ttyUSB0'
 
 
 port_handler = PortHandler(DEVICENAME)
@@ -102,7 +102,7 @@ xm_packet_handler_p1 = PacketHandler(XM_PROTOCOL_VERSION_1)
 xm_packet_handler_p2 = PacketHandler(XM_PROTOCOL_VERSION_2)
 
 
-MOTOR_VELOCITY = [20, 20, 20, 20, 20, 50, 50, 100]
+MOTOR_VELOCITY = [20, 10, 10, 10, 10, 30, 50, 100]
 
 
 #**********************************************************************************#
@@ -112,6 +112,7 @@ class MotorControlHub:
     def __init__(self):
 
         self.set_pos = SyncSetPosition()
+        self.set_ax_speed = AXSyncSetMovingSpeed()
 
         self.manipulator = Manipulator()
         
@@ -125,6 +126,8 @@ class MotorControlHub:
         self.target_position.z = 20
         
         self.previous_position = self.target_position
+        
+
 
 
         #아래방향 바라봄
@@ -135,6 +138,8 @@ class MotorControlHub:
         ] 
 
         self.gripper_position = 512
+        self.gripper_present_load = 0
+        self.gripper_load_check = False
 
         self.target_position_flag = False
         
@@ -142,9 +147,13 @@ class MotorControlHub:
         self.set_pos.xm_id_p1 = XM_DXL_ID_P1
         self.set_pos.xm_id_p2 = XM_DXL_ID_P2
 
-        self.set_pos.ax_position = [512, 512, 512]
-        self.set_pos.xm_position_p1 = [2048+1024,2048-1024]
-        self.set_pos.xm_position_p2 = [2048,2048+100,2048-100]#[2048, 2048, 2048, 2048, 2048]
+        self.set_pos.ax_position = [200, 512, 512]
+        self.set_pos.xm_position_p1 = [2048,2048]
+        self.set_pos.xm_position_p2 = [2048,2048+100-1024,2048-100+1024]#[2048, 2048, 2048, 2048, 2048]
+
+        self.set_ax_speed.id = AX_DXL_ID
+        self.set_ax_speed.speed = [20, 20, 80]
+
 
         
         rospy.Subscriber('target_position', Point, self.set_target_position_callback, queue_size=1)
@@ -153,6 +162,7 @@ class MotorControlHub:
         rospy.Subscriber('set_position',SyncSetPosition, self.set_goal_pos_callback, queue_size=1)
 
         self.pos_pub = rospy.Publisher('present_position', SyncSetPosition, queue_size=1)
+        self.ax_speed_pub = rospy.Publisher('present_ax_speed', AXSyncSetMovingSpeed, queue_size=1)
 
 
     def point_distance(self, p1:Point, p2:Point):
@@ -180,7 +190,8 @@ class MotorControlHub:
         self.previous_position.y = self.target_position.y
         self.previous_position.z = self.target_position.z
         ###############################################################################
-        self.gripper_position = 150
+        self.gripper_load_check = False
+        self.gripper_position = 20
         self.set_target_position()
         rospy.Rate(0.3).sleep()
         ################################################################################
@@ -195,9 +206,9 @@ class MotorControlHub:
         self.previous_position.z = self.target_position.z
         
         ###############################################################################
-        self.target_position.x = 0
-        self.target_position.y = 30
-        self.target_position.z = 10
+        self.target_position.x = -20
+        self.target_position.y = -5
+        self.target_position.z = 0
 
         dis = self.point_distance(self.target_position, self.previous_position)
         self.set_target_position()
@@ -271,6 +282,13 @@ class MotorControlHub:
                 return
             if(dxl_error != 0) :
                 return
+            
+        self.gripper_present_load, dxl_comm_result, dxl_error = ax_packet_handler.read2ByteTxRx(port_handler, AX_DXL_ID[2], AX_ADDR_PRESENT_LOAD)
+        if(dxl_comm_result != COMM_SUCCESS) :
+            return
+        if(dxl_error != 0) :
+            return
+        self.gripper_present_load %= 1024
         self.pos_pub.publish(present_position)
 
     
@@ -403,11 +421,13 @@ def main():
 
         data_hub.present_position_callback()
 
-        if data_hub.target_position_flag is False:
-            data_hub.set_target_position()
-            data_hub.target_position_flag = True
-
         rate.sleep()
+
+        if(data_hub.gripper_present_load > 300 and data_hub.gripper_load_check is False) :
+            print("dasdas:", data_hub.gripper_present_load, data_hub.manipulator.ax_position[2])
+            data_hub.gripper_position = data_hub.manipulator.ax_position[2]-30
+            data_hub.set_target_position()
+            data_hub.gripper_load_check = True
 
 
 

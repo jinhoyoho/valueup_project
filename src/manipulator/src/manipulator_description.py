@@ -26,13 +26,13 @@ class Manipulator:
         self.link2_length = 26.3
         self.link3_length = 27.5
         self.link4_length = 7.16
-        self.link5_length = 4.3
+        self.link5_length = 17
 
         self.fixed_frame_length = 2.7
 
-        self.ax_position_angle = []
-        self.xm_position_p1_angle = []
-        self.xm_position_p2_angle = []
+        self.ax_position = []
+        self.xm_position_p1 = []
+        self.xm_position_p2 = []
         self.ax_speed = []
 
         self.position_pub_data = SyncSetPosition()
@@ -41,10 +41,8 @@ class Manipulator:
 
 
         self.position_pub = rospy.Publisher('set_position', SyncSetPosition, queue_size=1)
-        self.ax_speed_pub = rospy.Publisher('set_ax_speed', AXSyncSetMovingSpeed, queue_size=1)
         
         rospy.Subscriber('present_position', SyncSetPosition, self.position_callback, queue_size=1)
-        rospy.Subscriber('present_ax_speed', AXSyncSetMovingSpeed, self.ax_speed_callback, queue_size=1)
 
         self.manipulator_link = Chain(name='manipulator', links=[
             OriginLink(),
@@ -79,7 +77,7 @@ class Manipulator:
                 origin_translation=[0,0,self.link3_length],
                 origin_orientation=[0,0,0],
                 rotation=[1,0,0],
-                 bounds=(-math.pi/2,0.0001)
+                 bounds=(-math.pi/2,math.pi/2)
             ),
             URDFLink(
                 name="fifth_link",
@@ -98,16 +96,13 @@ class Manipulator:
 
     
     def position_callback(self, msg:SyncSetPosition):
-        self.ax_position_angle = ax_position_to_rad(msg.ax_position)
-        self.xm_position_p1_angle = xm_position_to_rad(msg.xm_position_p1)
-        self.xm_position_p2_angle = xm_position_to_rad(msg.xm_position_p2)
-        print("XM_P2_position: ", msg.xm_position_p2)
-        print("XM_P1_position: ", msg.xm_position_p1)
-        print("AX_position   : ", msg.ax_position)
+        self.ax_position = msg.ax_position
+        self.xm_position_p1 = msg.xm_position_p1
+        self.xm_position_p2 = msg.xm_position_p2
+        # print("XM_P2_position: ", self.xm_position_p2)
+        # print("XM_P1_position: ", self.xm_position_p1)
+        # print("AX_position   : ", self.ax_position)
 
-    
-    def ax_speed_callback(self, msg:AXSyncSetMovingSpeed):
-        self.ax_speed = msg.speed
 
 
     def set_position(self, angles): # xm = [0,1,2,3,4] ax = [5,6,7] (1,2) , (3,4)는 서로 반대로 모터를 돌려야함 [angle1,~, angle6]을 인수로 받으면 됨
@@ -132,6 +127,5 @@ class Manipulator:
         # print(self.position_pub_data.xm_position_p2, self.position_pub_data.xm_position_p1 , self.position_pub_data.ax_position)
 
         self.position_pub.publish(self.position_pub_data)
-
 
 
